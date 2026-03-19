@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的世界 · 地形生成v0.1.1</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Microsoft YaHei', sans-serif; }
+        .ui-panel {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            text-align: center;
+            z-index: 10;
+        }
+        .panel-content {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2d2d2d;
+            padding: 40px;
+            border-radius: 10px;
+            border: 2px solid #555;
+            box-shadow: 0 0 20px black;
+            min-width: 300px;
+        }
+        .panel-content h1 {
+            margin-top: 0;
+            color: #ffaa00;
+            text-shadow: 2px 2px 0 #aa5500;
+        }
+        .btn {
+            display: block;
+            width: 200px;
+            margin: 15px auto;
+            padding: 12px;
+            background: #3a3a3a;
+            border: 2px solid #5a5a5a;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.2s;
+        }
+        .btn:hover {
+            background: #5a5a5a;
+            border-color: #ffaa00;
+        }
+        .btn.special {
+            background: #5a3a1a;
+            border-color: #aa7a3a;
+        }
+        .btn.special:hover {
+            background: #7a5a3a;
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+        }
+        .hotbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            background: rgba(0,0,0,0.5);
+            padding: 5px;
+            border-radius: 10px;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .hotbar-slot {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #888;
+            margin: 0 2px;
+            background: rgba(30,30,30,0.8);
+            color: white;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+        }
+        .hotbar-slot.active {
+            border-color: #ffaa00;
+            background: rgba(100,100,100,0.9);
+        }
+        .block-preview {
+            width: 30px;
+            height: 30px;
+            background: #aaa;
+            margin-bottom: 2px;
+            border-radius: 3px;
+        }
+        .block-grass { background: #7c9c5c; }
+        .block-dirt { background: #8b5a2b; }
+        .block-stone { background: #7a7a7a; }
+        .block-wood { background: #8d6b4d; }
+        .block-brick { background: #b85e5e; }
+        .crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            border: 2px solid white;
+            pointer-events: none;
+            z-index: 2;
+        }
+        #info {
+            position: absolute;
+            top: 10px; left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 14px;
+            z-index: 3;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主菜单界面 -->
+    <div id="menu-main" class="ui-panel" style="display: flex;">
+        <div class="panel-content">
+            <h1>⚡ 我的世界 · 地形生成v0.1.1</h1>
+            <button class="btn special" id="btn-start">▶ 开始游戏 (直接进入)</button>
+            <button class="btn" id="btn-create">🌍 创建新世界</button>
+            <button class="btn" id="btn-settings-main">⚙️ 设置</button>
+        </div>
+    </div>
+
+    <!-- 创建世界界面 -->
+    <div id="menu-create" class="ui-panel">
+        <div class="panel-content">
+            <h1>🌍 创建新世界</h1>
+            <input type="text" id="world-name" placeholder="世界名称 (仅显示)" value="我的世界">
+            <button class="btn special" id="btn-do-create">创建并进入</button>
+            <button class="btn" id="btn-back-to-main-from-create">← 返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 游戏中的暂停菜单 (按ESC显示) -->
+    <div id="menu-pause" class="ui-panel">
+        <div class="panel-content">
+            <h1>⏸️ 游戏暂停</h1>
+            <button class="btn special" id="btn-resume">继续游戏</button>
+            <button class="btn" id="btn-settings-pause">⚙️ 设置</button>
+            <button class="btn" id="btn-back-to-main-from-pause">🏠 返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 简单的设置占位界面 -->
+    <div id="menu-settings" class="ui-panel">
+        <div class="panel-content">
+            <h1>⚙️ 设置 (占位)</h1>
+            <p>这里是设置界面，由于是演示版，暂无实际选项。</p>
+            <button class="btn" id="btn-back-from-settings">返回</button>
+        </div>
+    </div>
+
+    <!-- 游戏HUD -->
+    <div id="hud" style="display: none;">
+        <div id="info">移动: WASD | 破坏: 左键 | 放置: 右键 | 切换: 1-9 | ESC: 暂停</div>
+        <div class="hotbar" id="hotbar"></div>
+        <div class="crosshair"></div>
+    </div>
+
+    <!-- 引入Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        
+        // --- 初始化场景、相机、渲染器 ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 20, 25); // 稍微抬高视角方便观察地形
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+        
+        // --- 光照 ---
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(10, 20, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        const d = 30;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.camera.near = 1;
+        dirLight.shadow.camera.far = 50;
+        scene.add(dirLight);
+        
+        const fillLight = new THREE.PointLight(0xffffff, 0.5);
+        fillLight.position.set(-10, 10, 10);
+        scene.add(fillLight);
+        
+        // --- 网格辅助 (可选，但保留方便观察) ---
+        const gridHelper = new THREE.GridHelper(100, 20, 0xaaaaaa, 0x444444);
+        gridHelper.position.y = -0.01;
+        scene.add(gridHelper);
+        
+        // --- 方块类型定义 (新增木头和树叶) ---
+        const blockTypes = [
+            { id: 0, name: '草', color: 0x7c9c5c },
+            { id: 1, name: '土', color: 0x8b5a2b },
+            { id: 2, name: '石', color: 0x7a7a7a },
+            { id: 3, name: '木板', color: 0x8d6b4d },
+            { id: 4, name: '砖块', color: 0xb85e5e },
+            { id: 5, name: '玻璃', color: 0x88ccff, transparent: true },
+            { id: 6, name: '金块', color: 0xffaa00 },
+            { id: 7, name: '钻石', color: 0x66ccff },
+            { id: 8, name: '黑曜石', color: 0x3a3a3a },
+            { id: 9, name: '木头', color: 0x8B5A2B },      // 新增
+            { id: 10, name: '树叶', color: 0x2D8C2D, transparent: true } // 新增
+        ];
+        
+        // 存储所有方块的Mesh
+        const blocks = [];
+        
+        // --- 简单的噪声函数 (模拟柏林噪声) ---
+        function noise2(x, z) {
+            // 使用多个正弦波叠加产生连续的高度变化
+            return Math.sin(x * 0.3) * Math.cos(z * 0.3) * 0.8 
+                 + Math.sin(x * 0.8) * 0.3 
+                 + Math.cos(z * 0.7) * 0.3;
+        }
+        
+        // --- 生成地形 (取代原来的平坦世界) ---
+        function generateWorld() {
+            // 清除现有方块
+            blocks.forEach(block => scene.remove(block));
+            blocks.length = 0;
+            
+            const worldSize = 16; // 生成范围 -16 到 16
+            
+            for (let x = -worldSize; x <= worldSize; x++) {
+                for (let z = -worldSize; z <= worldSize; z++) {
+                    // 计算高度：噪声值映射到 0~6 之间
+                    let height = Math.floor(noise2(x, z) * 3 + 3); // 范围大致 0~6
+                    height = Math.max(1, Math.min(6, height)); // 确保至少1
+                    
+                    // 基岩层 (y=-1)
+                    createBlock(2, x, -1, z); // 石头作为基岩
+                    
+                    // 从下往上填充
+                    for (let y = 0; y < height; y++) {
+                        if (y === height - 1) {
+                            // 最顶层为草地
+                            createBlock(0, x, y, z);
+                        } else if (y >= height - 3) {
+                            // 中上层为泥土
+                            createBlock(1, x, y, z);
+                        } else {
+                            // 下层为石头
+                            createBlock(2, x, y, z);
+                        }
+                    }
+                    
+                    // --- 随机生成树木 ---
+                    // 只在草地方块上生成，且概率10%
+                    if (height > 0 && Math.random() < 0.1) {
+                        const treeX = x;
+                        const treeZ = z;
+                        const groundY = height; // 草地所在y
+                        
+                        // 树干高度 3~4
+                        const trunkHeight = 3 + Math.floor(Math.random() * 2);
+                        
+                        // 生成树干
+                        for (let t = 1; t <= trunkHeight; t++) {
+                            createBlock(9, treeX, groundY + t, treeZ); // 木头
+                        }
+                        
+                        // 生成树叶 (简单围绕)
+                        const leafStartY = groundY + trunkHeight - 1;
+                        for (let dy = 0; dy <= 2; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                for (let dz = -1; dz <= 1; dz++) {
+                                    // 避免树干位置重复放置树叶
+                                    if (dx === 0 && dz === 0 && dy === 1) continue; // 树干顶部
+                                    // 树叶范围: 顶部两层扩散
+                                    if (dy === 0 && (dx !== 0 || dz !== 0)) continue; // 底部一层只放树干周围?
+                                    // 简化：在树干顶部和周围一圈放置树叶
+                                    const leafY = leafStartY + dy;
+                                    const leafX = treeX + dx;
+                                    const leafZ = treeZ + dz;
+                                    // 避免覆盖其他树干 (简单判断)
+                                    if (!getBlockAt(leafX, leafY, leafZ)) {
+                                        createBlock(10, leafX, leafY, leafZ);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 把玩家放到一个安全的位置 (找最高点)
+            camera.position.set(0, 15, 25); // 简单处理，避免卡在地里
+        }
+        
+        function createBlock(typeId, x, y, z) {
+            const type = blockTypes[typeId];
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ color: type.color });
+            if (type.transparent) {
+                material.transparent = true;
+                material.opacity = 0.7;
+            }
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x, y + 0.5, z);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            
+            cube.userData = { type: typeId, x, y, z };
+            
+            scene.add(cube);
+            blocks.push(cube);
+            return cube;
+        }
+        
+        function removeBlock(cube) {
+            const index = blocks.indexOf(cube);
+            if (index !== -1) {
+                scene.remove(cube);
+                blocks.splice(index, 1);
+            }
+        }
+        
+        function getBlockAt(x, y, z) {
+            return blocks.find(cube => 
+                Math.abs(cube.position.x - x) < 0.1 && 
+                Math.abs(cube.position.y - (y + 0.5)) < 0.1 && 
+                Math.abs(cube.position.z - z) < 0.1
+            );
+        }
+        
+        // 初始化世界
+        generateWorld();
+        
+        // --- 控制器 ---
+        const controls = new PointerLockControls(camera, document.body);
+        scene.add(controls.getObject());
+        
+        const moveState = { forward: false, backward: false, left: false, right: false };
+        
+        document.addEventListener('keydown', (e) => {
+            if (!controls.isLocked) return;
+            switch(e.code) {
+                case 'KeyW': moveState.forward = true; e.preventDefault(); break;
+                case 'KeyS': moveState.backward = true; e.preventDefault(); break;
+                case 'KeyA': moveState.left = true; e.preventDefault(); break;
+                case 'KeyD': moveState.right = true; e.preventDefault(); break;
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (!controls.isLocked) return;
+            switch(e.code) {
+                case 'KeyW': moveState.forward = false; e.preventDefault(); break;
+                case 'KeyS': moveState.backward = false; e.preventDefault(); break;
+                case 'KeyA': moveState.left = false; e.preventDefault(); break;
+                case 'KeyD': moveState.right = false; e.preventDefault(); break;
+            }
+        });
+        
+        const velocity = 5.0;
+        function updateMovement(delta) {
+            if (!controls.isLocked) return;
+            const actualVelocity = velocity * delta;
+            if (moveState.forward) controls.moveForward(actualVelocity);
+            if (moveState.backward) controls.moveForward(-actualVelocity);
+            if (moveState.left) controls.moveRight(-actualVelocity);
+            if (moveState.right) controls.moveRight(actualVelocity);
+        }
+        
+        // --- 射线检测 (破坏/放置) ---
+        const raycaster = new THREE.Raycaster();
+        
+        document.addEventListener('mousedown', (e) => {
+            if (!controls.isLocked || currentUI !== 'game') return;
+            
+            if (e.button === 0) {
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = raycaster.intersectObjects(blocks);
+                if (intersects.length > 0) {
+                    removeBlock(intersects[0].object);
+                }
+            } else if (e.button === 2) {
+                e.preventDefault();
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = raycaster.intersectObjects(blocks);
+                if (intersects.length > 0) {
+                    const hit = intersects[0].object;
+                    const point = intersects[0].point;
+                    const normal = intersects[0].face.normal.clone();
+                    const hitPos = hit.position;
+                    const nx = Math.round(hitPos.x + normal.x);
+                    const ny = Math.round(hitPos.y - 0.5 + normal.y);
+                    const nz = Math.round(hitPos.z + normal.z);
+                    
+                    if (!getBlockAt(nx, ny, nz)) {
+                        createBlock(currentBlockType, nx, ny, nz);
+                    }
+                }
+            }
+        });
+        
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // --- 快捷栏 ---
+        let currentBlockType = 0;
+        const hotbarSlots = 9;
+        const hotbarElement = document.getElementById('hotbar');
+        
+        function updateHotbarUI() {
+            hotbarElement.innerHTML = '';
+            for (let i = 0; i < hotbarSlots; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'hotbar-slot' + (i === currentBlockType % hotbarSlots ? ' active' : '');
+                const typeIndex = i % blockTypes.length;
+                const block = blockTypes[typeIndex];
+                const preview = document.createElement('div');
+                preview.className = 'block-preview';
+                preview.style.backgroundColor = '#' + block.color.toString(16).padStart(6, '0');
+                slot.appendChild(preview);
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = block.name.substring(0, 2);
+                slot.appendChild(nameSpan);
+                hotbarElement.appendChild(slot);
+            }
+        }
+        updateHotbarUI();
+        
+        document.addEventListener('keydown', (e) => {
+            if (!controls.isLocked) return;
+            const key = e.key;
+            if (key >= '1' && key <= '9') {
+                const index = parseInt(key) - 1;
+                if (index >= 0 && index < hotbarSlots) {
+                    currentBlockType = index % blockTypes.length;
+                    updateHotbarUI();
+                }
+            }
+        });
+        
+        // --- UI 状态管理 ---
+        let currentUI = 'main';
+        const menuMain = document.getElementById('menu-main');
+        const menuCreate = document.getElementById('menu-create');
+        const menuPause = document.getElementById('menu-pause');
+        const menuSettings = document.getElementById('menu-settings');
+        const hud = document.getElementById('hud');
+        
+        function setUI(ui) {
+            menuMain.style.display = 'none';
+            menuCreate.style.display = 'none';
+            menuPause.style.display = 'none';
+            menuSettings.style.display = 'none';
+            
+            if (ui === 'main') {
+                menuMain.style.display = 'flex';
+                hud.style.display = 'none';
+                if (controls.isLocked) controls.unlock();
+                currentUI = 'main';
+            } else if (ui === 'create') {
+                menuCreate.style.display = 'flex';
+                hud.style.display = 'none';
+                if (controls.isLocked) controls.unlock();
+                currentUI = 'create';
+            } else if (ui === 'game') {
+                hud.style.display = 'block';
+                currentUI = 'game';
+                renderer.domElement.requestPointerLock();
+            } else if (ui === 'pause') {
+                menuPause.style.display = 'flex';
+                hud.style.display = 'none';
+                if (controls.isLocked) controls.unlock();
+                currentUI = 'pause';
+            } else if (ui === 'settings') {
+                menuSettings.style.display = 'flex';
+                hud.style.display = 'none';
+                if (controls.isLocked) controls.unlock();
+                currentUI = 'settings';
+            }
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Escape') {
+                if (currentUI === 'game') {
+                    setUI('pause');
+                } else if (currentUI === 'pause') {
+                    setUI('game');
+                    renderer.domElement.requestPointerLock();
+                } else if (currentUI === 'settings') {
+                    setUI('main');
+                } else if (currentUI === 'create') {
+                    setUI('main');
+                }
+            }
+        });
+        
+        // 按钮事件
+        document.getElementById('btn-start').addEventListener('click', () => {
+            generateWorld(); // 重新生成世界
+            setUI('game');
+            renderer.domElement.requestPointerLock();
+        });
+        document.getElementById('btn-create').addEventListener('click', () => {
+            setUI('create');
+        });
+        document.getElementById('btn-settings-main').addEventListener('click', () => {
+            setUI('settings');
+        });
+        document.getElementById('btn-back-to-main-from-create').addEventListener('click', () => {
+            setUI('main');
+        });
+        document.getElementById('btn-do-create').addEventListener('click', () => {
+            const name = document.getElementById('world-name').value;
+            console.log('创建世界:', name);
+            generateWorld();
+            setUI('game');
+            renderer.domElement.requestPointerLock();
+        });
+        document.getElementById('btn-resume').addEventListener('click', () => {
+            setUI('game');
+            renderer.domElement.requestPointerLock();
+        });
+        document.getElementById('btn-settings-pause').addEventListener('click', () => {
+            setUI('settings');
+        });
+        document.getElementById('btn-back-to-main-from-pause').addEventListener('click', () => {
+            setUI('main');
+        });
+        document.getElementById('btn-back-from-settings').addEventListener('click', () => {
+            setUI('main');
+        });
+        
+        renderer.domElement.addEventListener('click', () => {
+            if (currentUI === 'game' && !controls.isLocked) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+        
+        // 动画循环
+        let clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (currentUI === 'game' && controls.isLocked) {
+                updateMovement(delta);
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        setUI('main');
+        console.log('v0.1.1 加载完成，世界已生成！');
+    </script>
+</body>
+</html>
